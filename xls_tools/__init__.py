@@ -2,6 +2,11 @@ import os
 import xlrd
 import re
 
+from .google_sheet_reader import GoogleSheetReader
+from .xl_reader import XlReader
+from .xl_sheet import XlSheet
+# from .exchanges_from_spreadsheet import exchanges_from_spreadsheet
+
 
 def xl_date(cell_or_value, mode=0, short=True):
     if isinstance(cell_or_value, xlrd.sheet.Cell):

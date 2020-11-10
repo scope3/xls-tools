@@ -84,6 +84,15 @@ class GSheetEmulator(object):
     def row(self, row):
         return list(GSheetCell(k) for k in self._data[row])
 
+    def col(self, col):
+        cd = []
+        for row in range(self.nrows):
+            try:
+                cd.append(GSheetCell(self._data[row][col]))
+            except IndexError:
+                cd.append(GSheetCell(''))
+        return cd
+
     def row_dict(self, row):
         """
         Creates a dictionary of the nth row using the 0th row as keynames
@@ -135,3 +144,23 @@ class GoogleSheetReader(object):
         except HttpError:
             raise KeyError('Unable to open sheet %s' % sheetname)
         return GSheetEmulator(d)
+
+    def create_sheet(self, name, **kwargs):
+        kwargs['title'] = name
+
+        body = {'requests': [
+            {'addSheet':
+                 {'properties': kwargs}
+             }
+
+        ]}
+        req = self._res.spreadsheets().batchUpdate(spreadsheetId=self._sheet_id,
+                                                   body=body)
+        return req.execute()
+
+    def write_to_sheet(self, sheet, range, data, **kwargs):
+        r = '%s!%s' % (sheet, range)
+        kwargs['values'] = data
+        req = self._res.spreadsheets().values().update(spreadsheetId=self._sheet_id, range=r,
+                                                       body=kwargs, valueInputOption='RAW')
+        return req.execute()

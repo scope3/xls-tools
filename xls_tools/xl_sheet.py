@@ -12,7 +12,7 @@ Uses the cheap, lightweight xlrd class as an access layer.
 
 
 import xlrd
-import pandas as pd
+
 
 
 N_OPTS = 4
@@ -64,8 +64,8 @@ def clean_value(cell):
 
 class XlSheet(object):
     """
-    This class handles access to a single sheet---
-    Fully defined, the sheet has a data row (default 1), data column (default 0), and a set of column headers
+    This class handles access to a single SHEET_NAME---
+    Fully defined, the SHEET_NAME has a data row (default 1), data column (default 0), and a set of column headers
     """
     def _next_row_thresh(self, start=0, thresh=0.7):
         while start < self._s.nrows:
@@ -383,6 +383,7 @@ class XlSheet(object):
                 return set(zip(*(self.col_data(column, mask=mask) for column in columns)))
 
     def to_dataframe(self, mask=None, **kwargs):
+        import pandas as pd
         return pd.DataFrame({k: self.col_data(i, mask=mask) for i, k in enumerate(self.headers())}, **kwargs)
 
 
