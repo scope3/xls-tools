@@ -103,6 +103,41 @@ class GSheetEmulator(object):
         return {headers[i]: k.value for i, k in enumerate(self.row(row))}
 
 
+def _col_to_colnum(col):
+    """
+    Convert an excel column name to a 0-indexed number 'A' = 0, 'B' = 1, ... 'AA' = 26, ... 'AAZ' = 727, ...
+    :param col:
+    :return:
+    """
+    if not isinstance(col, str):
+        return int(col)
+    cols = list(col.upper())
+    num = 0
+    while len(cols) > 0:
+        num *= 26
+        c = cols.pop(0)
+        num += (ord(c) - 64)
+    return num - 1
+
+
+def _colnum_to_col(num):
+    """
+    Convert a numeric index into an alphabetical column label. 0 = 'A', 1 = 'B'... 26 = 'AA', 27 = 'AB', ...
+    :param num:
+    :return:
+    """
+    if isinstance(num, str):
+        return num
+    col = ''
+    num = int(num)
+    while 1:
+        rad = num % 26
+        col = chr(ord('A') + rad) + col
+        num //= 26
+        num -= 1
+        if num < 0:
+            return col
+
 
 class GoogleSheetReader(object):
     """
@@ -164,3 +199,43 @@ class GoogleSheetReader(object):
         req = self._res.spreadsheets().values().update(spreadsheetId=self._sheet_id, range=r,
                                                        body=kwargs, valueInputOption='RAW')
         return req.execute()
+
+    def write_cell(self, sheet, row, col, value, **kwargs):
+        col = _colnum_to_col(col)
+        data = [[value]]
+        rn = '%s%d:%s%d' % (col, row + 1, col, row + 1)
+        return self.write_to_sheet(sheet, rn, data, **kwargs)
+
+    def write_column(self, sheet, col, values, start_row=0, **kwargs):
+        """
+        Write sequential data into a column of the google sheet.
+        :param sheet:
+        :param col: either a column string (e.g. 'AA') or a 0-indexed column number (e.g. 0 = 'A', 1 = 'B', ...)
+        :param values:
+        :param start_row: Row to begin (note: google-sheets are 1-indexed so start_row = 0 corresponds to row 1)
+        :param kwargs:
+        :return:
+        """
+        col = _colnum_to_col(col)
+        data = [[k] for k in values]
+        n = len(data)
+        rn = '%s%d:%s%d' % (col, start_row+1, col, start_row + n)
+        self.write_to_sheet(sheet, rn, data, **kwargs)
+
+    def write_row(self, sheet, row, values, start_col=0, **kwargs):
+        """
+        Write sequential data into a row of the google sheet.  (Note: google-sheets are 1-indexed so row = 0
+        corresponds to the spreadsheet's native row 1)
+        :param sheet:
+        :param row:
+        :param values:
+        :param start_col: Column to begin (default 0 / 'A')
+        :param kwargs:
+        :return:
+        """
+        row += 1
+        data = [[k for k in values]]
+        n = len(data[0])
+        rn = '%s%d:%s%d' % (_colnum_to_col(start_col), row, _colnum_to_col(start_col + n - 1), row)
+        self.write_to_sheet(sheet, rn, data, **kwargs)
+
