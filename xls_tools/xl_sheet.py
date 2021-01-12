@@ -278,9 +278,9 @@ class XlSheet(object):
         st_s = start or self.headerrow
 
         if multi:
-            val = ' '.join(str(k.value).strip() for k in self._s.col(i)[st_m:self.datarow]).strip()
+            val = ' '.join(str(self._s.cell(k, i).value).strip() for k in range(st_m, self.datarow)).strip()
         else:
-            val = clean_value(self._s.row(st_s)[i])
+            val = clean_value(self._s.cell(st_s, i))
         return val
 
     def headers(self, multi=None, start=None):
