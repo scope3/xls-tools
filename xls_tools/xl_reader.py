@@ -16,9 +16,9 @@ For the moment, the
 """
 
 
-import xlrd
 import os
 
+from .xlrd_like import open_xl
 from .xl_sheet import XlSheet
 
 
@@ -60,7 +60,7 @@ class XlReader(object):
         :param kwargs: defaults to get passed to every XlSheet
         """
         self._args = kwargs
-        self._xl = xlrd.open_workbook(xlfile, formatting_info=formatting_info)
+        self._xl = open_xl(xlfile, formatting_info=formatting_info)
         self._fname = os.path.abspath(xlfile)
 
         self._sheets = [None] * len(self._xl.sheet_names())

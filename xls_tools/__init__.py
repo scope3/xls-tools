@@ -5,6 +5,7 @@ import re
 from .google_sheet_reader import GoogleSheetReader
 from .xl_reader import XlReader
 from .xl_sheet import XlSheet
+from .xlrd_like import OpenpyXlrdWorkbook, open_xl
 # from .exchanges_from_spreadsheet import exchanges_from_spreadsheet
 
 
@@ -28,6 +29,5 @@ def xls_files(_path):
     for k in os.listdir(_path):
         if bool(re.match('^[^\.].+\.xlsx?$', k, flags=re.I)):
             yield os.path.join(_path, k)
-
 
 
