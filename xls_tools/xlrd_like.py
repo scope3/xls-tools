@@ -20,20 +20,19 @@ XlCellLike: cell equivalent
  .ctype - int, as indicated below
  .value - native value
 """
+from datetime import datetime
 
 import xlrd
 import openpyxl
-
-
-(
+from xlrd.biffh import (
     XL_CELL_EMPTY,
     XL_CELL_TEXT,
     XL_CELL_NUMBER,
     XL_CELL_DATE,
     XL_CELL_BOOLEAN,
-    XL_CELL_ERROR,
-    XL_CELL_BLANK, # for use in debugging, gathering stats, etc
-) = range(7)
+    # XL_CELL_ERROR,
+    # XL_CELL_BLANK, # for use in debugging, gathering stats, etc
+)
 
 
 class XlrdCellLike(object):
@@ -58,6 +57,8 @@ class XlrdCellLike(object):
             return XL_CELL_NUMBER
         elif isinstance(self._cell, bool):
             return XL_CELL_BOOLEAN
+        elif isinstance(self._cell, datetime):
+            return XL_CELL_DATE
         else:
             return XL_CELL_TEXT
 
@@ -117,9 +118,20 @@ class OpenpyxlSheetLike(XlrdSheetLike):
         return self._xlsx
 
     def __init__(self, xlsx_sheet):
+        """
+        We have to access the openpyxl sheet's internal dict of _cells in order to filter out Nones when computing
+        the spreadsheet's range
+        :param xlsx_sheet:
+        """
         self._xlsx = xlsx_sheet
-        self._nrows = self._xlsx.max_row
-        self._ncols = self._xlsx.max_column
+        max_row = max_col = 0
+        for coord, cell in xlsx_sheet._cells.items():  # we have to do this because openpyxl is.. designed for purposes different from mine
+            if cell.data_type == 'n':
+                continue
+            max_row = max([max_row, coord[0]])
+            max_col = max([max_col, coord[1]])
+        self._nrows = max_row
+        self._ncols = max_col
 
     @property
     def name(self):
@@ -143,23 +155,24 @@ class OpenpyxlSheetLike(XlrdSheetLike):
         if row > self._nrows:
             raise IndexError
 
-        rows = list(self._xlsx.iter_rows(min_row=row, max_row=row))  # 2nd order list)
+        rows = list(self._xlsx.iter_rows(min_row=row, max_row=row, max_col=self._ncols))  # 2nd order list)
         return [XlrdCellLike(k.value) for k in rows[0]]
 
     def col(self, col):
         """
         Zero-indexed!
+        AND, per xlrd, negative index is counting from ncols
         :param col:
         :return:
         """
-        '''
-        This is somewhat DRY
-        '''
-        col += 1
+        if col < 0:
+            col = self.ncols + col + 1
+        else:
+            col += 1
         if col > self._ncols:
             raise IndexError
 
-        cols = list(self._xlsx.iter_cols(min_col=col, max_col=col))
+        cols = list(self._xlsx.iter_cols(min_col=col, max_col=col, max_row=self._nrows))
         return [XlrdCellLike(k.value) for k in cols[0]]
 
     def cell(self, row, col):
@@ -207,7 +220,7 @@ class OpenpyXlrdWorkbook(XlrdWorkbookLike):
         return self._sheets
 
 
-def open_xl(path, formatting_info=False, **kwargs):
+def open_xl(path, formatting_info=False, data_only=True, **kwargs):
     if path.lower().endswith('xls'):
         return xlrd.open_workbook(path, formatting_info=formatting_info)
     else:
@@ -215,4 +228,4 @@ def open_xl(path, formatting_info=False, **kwargs):
         try:
         except:
         '''
-        return OpenpyXlrdWorkbook.from_file(path, **kwargs)
+        return OpenpyXlrdWorkbook.from_file(path, data_only=data_only, **kwargs)

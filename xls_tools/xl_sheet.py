@@ -175,7 +175,7 @@ class XlSheet(object):
                       'ma': MATRIX}[str(option).lower()[:2]]
         self._setopt(option, value)
 
-    def __init__(self, sheet, strict=False, datarow=None, datacol=None, headerrow=None,
+    def __init__(self, sheet, strict=False, datarow=None, datacol=None, #  headerrow=None,
                  multiheader=False,
                  row_gaps=False,
                  col_gaps=False):
@@ -305,6 +305,8 @@ class XlSheet(object):
                 _o.append(k.value.strip())
             elif k.ctype == xlrd.XL_CELL_ERROR:
                 _o.append('Error:%d' % k.value)
+            elif k.ctype == xlrd.XL_CELL_EMPTY:
+                _o.append(None)
             else:
                 _o.append(k.value)
 
@@ -313,6 +315,12 @@ class XlSheet(object):
         return _o
 
     def gen_rows(self, mask=None, rowdict=False):
+        """
+        Blank cells have value None
+        :param mask:
+        :param rowdict:
+        :return:
+        """
         if rowdict:
             h = self.headers()
         else:
@@ -342,7 +350,7 @@ class XlSheet(object):
                 return self.headers().index(column)
             except ValueError:
                 try:
-                    return next(i for i, k in enumerate(self.headers()) if k.startswith(column))
+                    return next(i for i, k in enumerate(self.headers()) if k is not None and k.startswith(column))
                 except StopIteration:
                     raise KeyError('Column %s not found' % column)
 

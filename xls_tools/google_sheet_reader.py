@@ -11,7 +11,7 @@ class GSheetCell(object):
     def __init__(self, str_value, ctype=None):
         if len(str_value) == 0:
             ctype = 0
-            value = ''
+            value = None
         elif ctype is None:
             # detect type: either blank, number, or string
             try:
