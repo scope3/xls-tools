@@ -11,9 +11,8 @@ Uses the cheap, lightweight xlrd class as an access layer.
 """
 
 
-import xlrd
-
-
+from .xlrd_like import XL_CELL_EMPTY, XL_CELL_TEXT, XL_CELL_NUMBER, XlrdSheetLike
+from xlrd.biffh import XL_CELL_ERROR
 
 N_OPTS = 4
 (MULTI, ROW_GAPS, COL_GAPS, MATRIX) = range(N_OPTS)
@@ -31,7 +30,7 @@ def chunks(xcol):
     """
     st = None
     for i, k in enumerate(xcol):
-        if k.ctype == xlrd.biffh.XL_CELL_EMPTY:
+        if k.ctype == XL_CELL_EMPTY:
             if st is not None:  # falling edge
                 yield st, i - st
                 st = None
@@ -55,14 +54,14 @@ def _longest(xcol):
 
 
 def clean_value(cell):
-    if cell.ctype == xlrd.biffh.XL_CELL_TEXT:
+    if cell.ctype == XL_CELL_TEXT:
         val = cell.value.strip()
     else:
         val = cell.value
     return val
 
 
-class XlSheet(object):
+class XlSheet(XlrdSheetLike):
     """
     This class handles access to a single SHEET_NAME---
     Fully defined, the SHEET_NAME has a data row (default 1), data column (default 0), and a set of column headers
@@ -217,6 +216,14 @@ class XlSheet(object):
         return self._s.name
 
     @property
+    def nrows(self):
+        return self._s.nrows
+
+    @property
+    def ncols(self):
+        return self._s.ncols
+
+    @property
     def datarow(self):
         return self._r
 
@@ -251,12 +258,12 @@ class XlSheet(object):
             if self._getopt(ROW_GAPS):
                 # if ROW_GAPS is true, lastrow is the last row with a nonempty entry in the data column
                 self._lr_int = max(i for i, k in enumerate(self._s.col(self.datacol))
-                                   if k.ctype != xlrd.biffh.XL_CELL_EMPTY) + 1
+                                   if k.ctype != XL_CELL_EMPTY) + 1
             else:
                 # if ROW_GAPS is false: lastrow is the last row before the first empty row after the first data row
                 try:
                     self._lr_int = next(i for i, k in enumerate(self._s.col(self.datacol))
-                                        if i > self.datarow and k.ctype == xlrd.biffh.XL_CELL_EMPTY)
+                                        if i > self.datarow and k.ctype == XL_CELL_EMPTY)
                 except StopIteration:
                     self._lr_int = self._s.nrows
         return self._lr_int
@@ -301,11 +308,11 @@ class XlSheet(object):
         for i, k in enumerate(self._s.row(rownum)):
             if i < self.datacol:
                 continue
-            if k.ctype == xlrd.XL_CELL_TEXT:
+            if k.ctype == XL_CELL_TEXT:
                 _o.append(k.value.strip())
-            elif k.ctype == xlrd.XL_CELL_ERROR:
+            elif k.ctype == XL_CELL_ERROR:
                 _o.append('Error:%d' % k.value)
-            elif k.ctype == xlrd.XL_CELL_EMPTY:
+            elif k.ctype == XL_CELL_EMPTY:
                 _o.append(None)
             else:
                 _o.append(k.value)
@@ -372,11 +379,14 @@ class XlSheet(object):
             dat = self._s.col(column)[self.datarow:self.lastrow]
             return [k for i, k in enumerate(dat) if mask[i]]
 
+    def cell(self, row, col):
+        return self._s.cell(row, col)
+
     def col_data(self, column, mask=None):
         return [clean_value(k) for k in self.col(column, mask=mask)]
 
     def total(self, column, mask=None):
-        return sum(k.value for k in self.col(column, mask=mask) if k.ctype == xlrd.biffh.NUMBERFORMAT)
+        return sum(k.value for k in self.col(column, mask=mask) if k.ctype == XL_CELL_NUMBER)
 
     def unique(self, *columns, mask=None):
         if len(columns) == 1:

@@ -18,11 +18,12 @@ For the moment, the
 
 import os
 
-from .xlrd_like import open_xl
+from .open_xl import open_xl
+from .xlrd_like import XlrdWorkbookLike
 from .xl_sheet import XlSheet
 
 
-class XlReader(object):
+class XlReader(XlrdWorkbookLike):
     """
     How many times and in how many variants has this class been created?
     """
@@ -83,3 +84,12 @@ class XlReader(object):
     @property
     def sheet_names(self):
         return self._xl.sheet_names()
+
+    def sheet_by_name(self, name):
+        return self.__getitem__(name)
+
+    def sheet_by_index(self, index):
+        return self.__getitem__(index)
+
+    def sheets(self):
+        return [self.__getitem__(k) for k in self.sheet_names]

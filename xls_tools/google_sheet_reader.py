@@ -1,46 +1,27 @@
 from googleapiclient import discovery
 from googleapiclient.http import HttpError
 from oauth2client.service_account import ServiceAccountCredentials
+from .xlrd_like import XlrdCellLike, XlrdSheetLike, XlrdWorkbookLike
 
 
 class GoogleSheetError(Exception):
     pass
 
 
-class GSheetCell(object):
-    def __init__(self, str_value, ctype=None):
+class GSheetCell(XlrdCellLike):
+    def __init__(self, str_value):
         if len(str_value) == 0:
-            ctype = 0
             value = None
-        elif ctype is None:
+        else:
             # detect type: either blank, number, or string
             try:
-                nval = float(str_value)
+                value = float(str_value)
             except (TypeError, ValueError):
-                nval = None
-            if nval is None:
-                ctype = 1
                 value = str_value
-            else:
-                ctype = 2
-                value = nval
-        else:
-            value = str_value
-            ctype = int(ctype)
-
-        self._c = ctype
-        self._v = value
-
-    @property
-    def ctype(self):
-        return self._c
-
-    @property
-    def value(self):
-        return self._v
+        super(GSheetCell, self).__init__(value)
 
 
-class GSheetEmulator(object):
+class GSheetEmulator(XlrdSheetLike):
     def __init__(self, value_data):
         """
 
@@ -93,6 +74,9 @@ class GSheetEmulator(object):
                 cd.append(GSheetCell(''))
         return cd
 
+    def cell(self, row, col):
+        return GSheetCell(self._data[row][col])
+
     def row_dict(self, row):
         """
         Creates a dictionary of the nth row using the 0th row as keynames
@@ -122,7 +106,7 @@ def _col_to_colnum(col):
 
 def _colnum_to_col(num):
     """
-    Convert a numeric index into an alphabetical column label. 0 = 'A', 1 = 'B'... 26 = 'AA', 27 = 'AB', ...
+    Convert a 0-indexed numeric index into an alphabetical column label. 0 = 'A', 1 = 'B'... 26 = 'AA', 27 = 'AB', ...
     :param num:
     :return:
     """
@@ -139,7 +123,7 @@ def _colnum_to_col(num):
             return col
 
 
-class GoogleSheetReader(object):
+class GoogleSheetReader(XlrdWorkbookLike):
     """
     Creates an xlrd-like google sheet reader with the following properties:
 
@@ -156,11 +140,27 @@ class GoogleSheetReader(object):
 
     """
     def __init__(self, credential_file, sheet_id):
+        """
+        Creates an Xlrd-like object that also has create-sheet and write-to-sheet capabilities.
+
+        For instructions on obtaining a JWT credential file, please visit:
+         https://docs.gspread.org/en/latest/oauth2.html#service-account
+
+        the sheet_id is the long alphanumeric string that appears in the URL, e.g.:
+        https://docs.google.com/spreadsheets/d/{sheet_id}/edit#...
+
+        You must grant your service account authority to access the sheet.
+
+        :param credential_file:
+        :param sheet_id:
+        """
         cred = ServiceAccountCredentials.from_json_keyfile_name(credential_file,
                                                                 scopes=['https://spreadsheets.google.com/feeds'])
         self._res = discovery.build('sheets', 'v4', credentials=cred)
 
         self._sheet_id = sheet_id
+
+        self._sheetnames = self.sheet_names()
 
     def sheet_names(self):
         req = self._res.spreadsheets().get(spreadsheetId=self._sheet_id)
@@ -180,6 +180,16 @@ class GoogleSheetReader(object):
             raise KeyError('Unable to open sheet %s' % sheetname)
         return GSheetEmulator(d)
 
+    def sheet_by_index(self, index):
+        return self.sheet_by_name(self._sheetnames[index])
+
+    def sheets(self):
+        """
+        No sheet caching!
+        :return:
+        """
+        return [self.sheet_by_name(name) for name in self._sheetnames]
+
     def create_sheet(self, name, **kwargs):
         kwargs['title'] = name
 
@@ -191,9 +201,19 @@ class GoogleSheetReader(object):
         ]}
         req = self._res.spreadsheets().batchUpdate(spreadsheetId=self._sheet_id,
                                                    body=body)
-        return req.execute()
+        ret = req.execute()
+        self._sheetnames = self.sheet_names()
+        return ret
 
     def write_to_sheet(self, sheet, range, data, **kwargs):
+        """
+        The data must be a 2d array that matches the size of the range argument
+        :param sheet:
+        :param range:
+        :param data:
+        :param kwargs: added to request body
+        :return:
+        """
         r = '%s!%s' % (sheet, range)
         kwargs['values'] = data
         req = self._res.spreadsheets().values().update(spreadsheetId=self._sheet_id, range=r,
@@ -201,6 +221,15 @@ class GoogleSheetReader(object):
         return req.execute()
 
     def write_cell(self, sheet, row, col, value, **kwargs):
+        """
+
+        :param sheet:
+        :param row: 0-indexed
+        :param col: 0-indexed number or alphabetical column name e.g. 'A'
+        :param value:
+        :param kwargs: added to request body
+        :return:
+        """
         col = _colnum_to_col(col)
         data = [[value]]
         rn = '%s%d:%s%d' % (col, row + 1, col, row + 1)
@@ -212,7 +241,7 @@ class GoogleSheetReader(object):
         :param sheet:
         :param col: either a column string (e.g. 'AA') or a 0-indexed column number (e.g. 0 = 'A', 1 = 'B', ...)
         :param values:
-        :param start_row: Row to begin (note: google-sheets are 1-indexed so start_row = 0 corresponds to row 1)
+        :param start_row: 0-indexed row to begin (note: google-sheets are 1-indexed so start_row=0 corresponds to row 1)
         :param kwargs:
         :return:
         """
@@ -229,7 +258,7 @@ class GoogleSheetReader(object):
         :param sheet:
         :param row:
         :param values:
-        :param start_col: Column to begin (default 0 / 'A')
+        :param start_col: 0-indexed Column to begin (default 0 / 'A')
         :param kwargs:
         :return:
         """
@@ -238,4 +267,3 @@ class GoogleSheetReader(object):
         n = len(data[0])
         rn = '%s%d:%s%d' % (_colnum_to_col(start_col), row, _colnum_to_col(start_col + n - 1), row)
         self.write_to_sheet(sheet, rn, data, **kwargs)
-
