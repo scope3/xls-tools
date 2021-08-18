@@ -5,9 +5,9 @@ The canonical format for an Excel table is row 1 having headers; tabular content
 in rows 2-x; and no non-tabular data present in the sheet.
 
 A lot of the functionality of this file is dedicated to auto-detecting the edges and column headers for tables
-with non-canonical formatting.
+with non-canonical formatting.  Lots of heuristics. Not [yet] tested.
 
-Uses the cheap, lightweight xlrd class as an access layer.
+Uses the cheap, lightweight xlrd-like class as an access layer.
 """
 
 
@@ -41,6 +41,24 @@ def chunks(xcol):
         yield st, len(xcol) - st
 
 
+def share(xcol):
+    """
+    Returns the fraction of the input data that is non-empty, and the first non-empty cell
+    :param xcol:
+    :return:
+    """
+    first = None
+    c = d = 0
+    for k in xcol:
+        c += 1
+        if k.ctype == XL_CELL_EMPTY:
+            continue
+        d += 1
+        if first is None:
+            first = c - 1
+    return d/c, first
+
+
 def _longest(xcol):
     """
     returns row, len for longest len in the iterable
@@ -68,11 +86,11 @@ class XlSheet(XlrdSheetLike):
     """
     def _next_row_thresh(self, start=0, thresh=0.7):
         while start < self._s.nrows:
-            col, ck = _longest(self._s.row(start))
-            if ck > thresh * self._s.ncols:
-                return start, col
+            sh, first = share(self._s.row(start))
+            if sh > thresh:
+                return start, first
             start += 1
-        return 0, 0
+        return 0, None
 
     def _next_col_thresh(self, start=0, thresh=0.6):
         """
@@ -84,7 +102,7 @@ class XlSheet(XlrdSheetLike):
         apparent_firstrow, apparent_start = self._next_row_thresh()
         use_thresh = (self._s.nrows - apparent_firstrow) * thresh
 
-        if apparent_start > start:
+        if apparent_start and (apparent_start > start):
             start = apparent_start
 
         while start < self._s.ncols:
