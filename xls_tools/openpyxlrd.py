@@ -5,9 +5,9 @@ from .xlrd_like import XlrdSheetLike, XlrdCellLike, XlrdWorkbookLike
 class OpenpyxlSheetLike(XlrdSheetLike):
 
     @property
-    def sheet(self):
+    def xlsx(self):
         """
-        Allow native access to sheet
+        Allow native access to openpyxl object
         :return:
         """
         return self._xlsx

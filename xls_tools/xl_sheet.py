@@ -79,6 +79,10 @@ def clean_value(cell):
     return val
 
 
+class _EmptyRow(Exception):
+    pass
+
+
 class XlSheet(XlrdSheetLike):
     """
     This class handles access to a single SHEET_NAME---
@@ -180,6 +184,8 @@ class XlSheet(XlrdSheetLike):
         self._opts[opt] = bool(val)
         # reset internal lastrow
         self._lr_int = None
+        # recompute headers
+        self._compute_headers()
 
     def _getopt(self, opt):
         return self._opts[opt]
@@ -218,10 +224,12 @@ class XlSheet(XlrdSheetLike):
         self._setopt(MULTI, multiheader)
         self._setopt(ROW_GAPS, row_gaps)
         self._setopt(COL_GAPS, col_gaps)
+        self._cached_headers = []
 
         if strict:
             self.datarow = datarow or 1
             self.datacol = datacol or 0
+            self.headerrow = self.datarow - 1
         else:
             self._discover(datarow, datacol)
 
@@ -258,6 +266,11 @@ class XlSheet(XlrdSheetLike):
     @headerrow.setter
     def headerrow(self, row):
         self._hr = int(row)
+        self._compute_headers()
+
+    @property
+    def headers(self):
+        return self._cached_headers
 
     @property
     def datacol(self):
@@ -299,6 +312,13 @@ class XlSheet(XlrdSheetLike):
         return self._getopt(MULTI)
 
     def _header(self, i, multi, start=None):
+        """
+        construct header i based on multi-row header specification and current headerrow
+        :param i:
+        :param multi:
+        :param start:
+        :return:
+        """
         st_m = start or 0
         st_s = start or self.headerrow
 
@@ -308,32 +328,42 @@ class XlSheet(XlrdSheetLike):
             val = clean_value(self._s.cell(st_s, i))
         return val
 
-    def headers(self, multi=None, start=None):
+    def _compute_headers(self, multi=None, start=None):
         """
+        Generate a list of headers from the current configuration (slow)
+        access the protected variable _headers to use the cached list (fast)
 
         :param multi:
         :param start: if multi is false, start is the header row. if multi is true, start is the start of the header
         :return:
         """
+        if self.datacol is None:
+            return
         multi = multi or self.multi
         headers = []
         for i in range(self.datacol, self._s.ncols):
             headers.append(self._header(i, multi, start))
-        return headers
+        self._cached_headers = headers
 
     def _read_row(self, rownum, _make_dict=None):
         _o = []
+        _empty = True
         for i, k in enumerate(self._s.row(rownum)):
             if i < self.datacol:
                 continue
             if k.ctype == XL_CELL_TEXT:
+                _empty = False
                 _o.append(k.value.strip())
             elif k.ctype == XL_CELL_ERROR:
                 _o.append('Error:%d' % k.value)
             elif k.ctype == XL_CELL_EMPTY:
                 _o.append(None)
             else:
+                _empty = False
                 _o.append(k.value)
+
+        if _empty and self._getopt(ROW_GAPS):
+            raise _EmptyRow
 
         if _make_dict is not None:
             return {k: v for k, v in zip(_make_dict, _o)}
@@ -347,7 +377,7 @@ class XlSheet(XlrdSheetLike):
         :return:
         """
         if rowdict:
-            h = self.headers()
+            h = self.headers
         else:
             h = None
         for i in range(self.datarow, self.lastrow):
@@ -355,7 +385,10 @@ class XlSheet(XlrdSheetLike):
             if mask is not None:
                 if not mask[in_mask]:
                     continue
-            yield i, self._read_row(i, _make_dict=h)
+            try:
+                yield i, self._read_row(i, _make_dict=h)
+            except _EmptyRow:
+                continue
 
     def __getitem__(self, item):
         if isinstance(item, int):
@@ -372,10 +405,10 @@ class XlSheet(XlrdSheetLike):
             return int(column)
         except ValueError:
             try:
-                return self.headers().index(column)
+                return self.headers.index(column)
             except ValueError:
                 try:
-                    return next(i for i, k in enumerate(self.headers()) if k is not None and k.startswith(column))
+                    return next(i for i, k in enumerate(self.headers) if k is not None and k.startswith(column))
                 except StopIteration:
                     raise KeyError('Column %s not found' % column)
 
@@ -384,7 +417,7 @@ class XlSheet(XlrdSheetLike):
 
     def row(self, row, rowdict=False):
         if rowdict:
-            h = self.headers()
+            h = self.headers
         else:
             h = None
         return self._read_row(row + self.datarow, _make_dict=h)
@@ -420,6 +453,6 @@ class XlSheet(XlrdSheetLike):
 
     def to_dataframe(self, mask=None, **kwargs):
         import pandas as pd
-        return pd.DataFrame({k: self.col_data(i, mask=mask) for i, k in enumerate(self.headers())}, **kwargs)
+        return pd.DataFrame({k: self.col_data(i, mask=mask) for i, k in enumerate(self.headers)}, **kwargs)
 
 
