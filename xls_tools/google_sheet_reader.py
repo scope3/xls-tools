@@ -3,6 +3,8 @@ from googleapiclient.http import HttpError
 from oauth2client.service_account import ServiceAccountCredentials
 from .xlrd_like import XlrdCellLike, XlrdSheetLike, XlrdWorkbookLike
 
+import time
+
 
 class GoogleSheetError(Exception):
     pass
@@ -65,6 +67,10 @@ class GSheetEmulator(XlrdSheetLike):
     def row(self, row):
         return list(GSheetCell(k) for k in self._data[row])
 
+    def get_rows(self):
+        for i in range(self.nrows):
+            yield self.row(i)
+
     def col(self, col):
         cd = []
         for row in range(self.nrows):
@@ -100,7 +106,7 @@ def _col_to_colnum(col):
     while len(cols) > 0:
         num *= 26
         c = cols.pop(0)
-        num += (ord(c) - 64)
+        num += (ord(c) - ord('A') + 1)
     return num - 1
 
 
@@ -218,7 +224,10 @@ class GoogleSheetReader(XlrdWorkbookLike):
         kwargs['values'] = data
         req = self._res.spreadsheets().values().update(spreadsheetId=self._sheet_id, range=r,
                                                        body=kwargs, valueInputOption='RAW')
-        return req.execute()
+        result = req.execute()
+        time.sleep(1)  # standard quota is only 60 requests per minute per user (300 per minute per project)
+        # use write_rectangle_by_rows and [nonimpl] write_rectangle_by_columns
+        return result
 
     def write_cell(self, sheet, row, col, value, **kwargs):
         """
@@ -267,3 +276,62 @@ class GoogleSheetReader(XlrdWorkbookLike):
         n = len(data[0])
         rn = '%s%d:%s%d' % (_colnum_to_col(start_col), row, _colnum_to_col(start_col + n - 1), row)
         self.write_to_sheet(sheet, rn, data, **kwargs)
+
+    def write_rectangle_by_rows(self, sheet, row_gen, start_row=0, start_col=0, **kwargs):
+        """
+        Write data to a rectangular area, starting at start_row and start_col.  The size of the rectangle
+        is determined by the longest row {{short rows are padded with Nones, which are ignored by gsheet API}}
+
+        This is vital to avoiding unbearably slow execution, due to google's rate limit of 60 queries/minute/user
+
+        :param sheet:
+        :param row_gen: a generator that produces iterables of values for each row, beginning with start_col
+        :param start_row: 0-indexed start row
+        :param start_col: 0-indexed start column
+        :param kwargs:
+        :return:
+        """
+        end_row = start_row
+        start_row += 1
+        data = []
+        n = 0
+        for row in row_gen:
+            nextdata = [value for value in row]
+            n = max([n, len(nextdata)])
+            data.append(nextdata)
+            end_row += 1
+
+        for row in data:
+            while len(row) < n:
+                row.append(None)
+
+        rn = '%s%d:%s%d' % (_colnum_to_col(start_col), start_row, _colnum_to_col(start_col + n - 1), end_row)
+        self.write_to_sheet(sheet, rn, data, **kwargs)
+
+    def clear_region(self, sheet, start_row=0, start_col=0, end_row=None, end_col=None, **kwargs):
+        """
+        Clear the region using the gsheet API.  Note: input args are 0-indexed, noting that API is 1-indexed.
+        Default is to clear the entire sheet.
+        :param sheet: must exist
+        :param start_row: 0-indexed. defaults to first row
+        :param start_col: 0-indexed. defaults to first column
+        :param end_row: 0-indexed. defaults to last row
+        :param end_col: 0-indexed. defaults to last column
+        :param kwargs: passed as request body
+        :return:
+        """
+        s = self.sheet_by_name(sheet)
+        if end_row is None or end_row > (s.nrows - 1):
+            end_row = s.nrows
+        else:
+            end_row += 1
+        if end_col is None or end_col > (s.ncols - 1):
+            end_col = s.ncols
+        else:
+            end_col += 1
+        start_row = max([start_row + 1, 1])
+        start_col = max([start_col + 1, 1])
+
+        rn = '%s!R%dC%d:R%d:C%d' % (sheet, start_row, start_col, end_row, end_col)
+        req = self._res.spreadsheets().values().clear(spreadsheetId=self._sheet_id, range=rn, body=kwargs)
+        req.execute()
