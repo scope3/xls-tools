@@ -280,6 +280,7 @@ class XlSheet(XlrdSheetLike):
     def datacol(self, col):
         self._c = int(col)
         self._lr_int = None
+        self._compute_headers()
 
     @property
     def lastrow(self):
@@ -369,12 +370,16 @@ class XlSheet(XlrdSheetLike):
             return {k: v for k, v in zip(_make_dict, _o)}
         return _o
 
+    def get_rows(self):
+        for i, row in self.gen_rows():
+            yield row
+
     def gen_rows(self, mask=None, rowdict=False):
         """
         Blank cells have value None
         :param mask:
         :param rowdict:
-        :return:
+        :return: generates i, row tuples, but only for [non-blank] data rows
         """
         if rowdict:
             h = self.headers

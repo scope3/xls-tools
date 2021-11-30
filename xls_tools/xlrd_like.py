@@ -15,6 +15,7 @@ XlSheetLike: worksheet equivalent
  .row(n) - return a list of XlCellLike corresponding to the nth (0-indexed) row, or IndexError
  .col(k) - return a list of XlCellLike corresponding to the kth (0-indexed) column, or IndexError
  .cell(n,k) - return the nth row, kth cell, or IndexError
+ .get_rows() - row iterator
 
 XlCellLike: cell equivalent
  .ctype - int, as indicated below
@@ -82,6 +83,9 @@ class XlrdSheetLike(object):
         raise NotImplementedError
 
     def cell(self, row, col):
+        raise NotImplementedError
+
+    def get_rows(self):
         raise NotImplementedError
 
 

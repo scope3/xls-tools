@@ -53,6 +53,11 @@ class OpenpyxlSheetLike(XlrdSheetLike):
         rows = list(self._xlsx.iter_rows(min_row=row, max_row=row, max_col=self._ncols))  # 2nd order list)
         return [XlrdCellLike(k.value) for k in rows[0]]
 
+    def get_rows(self):
+        rows = list(self._xlsx.iter_rows(min_row=1, max_row=self._nrows, max_col=self._ncols))
+        for row in rows:
+            yield [XlrdCellLike(k.value) for k in row]
+
     def col(self, col):
         """
         Zero-indexed!
