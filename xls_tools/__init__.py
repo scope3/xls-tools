@@ -9,6 +9,7 @@ from .xl_reader import XlReader
 from .xl_sheet import XlSheet
 from .openpyxlrd import OpenpyXlrdWorkbook
 from .open_xl import open_xl
+from .util import colnum_to_col, col_to_colnum
 # from .exchanges_from_spreadsheet import exchanges_from_spreadsheet
 
 

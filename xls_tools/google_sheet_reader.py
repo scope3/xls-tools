@@ -2,6 +2,7 @@ from googleapiclient import discovery
 from googleapiclient.http import HttpError
 from oauth2client.service_account import ServiceAccountCredentials
 from .xlrd_like import XlrdCellLike, XlrdSheetLike, XlrdWorkbookLike
+from .util import colnum_to_col
 
 import time
 
@@ -91,42 +92,6 @@ class GSheetEmulator(XlrdSheetLike):
         """
         headers = [k.value for k in self.row(0)]
         return {headers[i]: k.value for i, k in enumerate(self.row(row))}
-
-
-def _col_to_colnum(col):
-    """
-    Convert an excel column name to a 0-indexed number 'A' = 0, 'B' = 1, ... 'AA' = 26, ... 'AAZ' = 727, ...
-    :param col:
-    :return:
-    """
-    if not isinstance(col, str):
-        return int(col)
-    cols = list(col.upper())
-    num = 0
-    while len(cols) > 0:
-        num *= 26
-        c = cols.pop(0)
-        num += (ord(c) - ord('A') + 1)
-    return num - 1
-
-
-def _colnum_to_col(num):
-    """
-    Convert a 0-indexed numeric index into an alphabetical column label. 0 = 'A', 1 = 'B'... 26 = 'AA', 27 = 'AB', ...
-    :param num:
-    :return:
-    """
-    if isinstance(num, str):
-        return num
-    col = ''
-    num = int(num)
-    while 1:
-        rad = num % 26
-        col = chr(ord('A') + rad) + col
-        num //= 26
-        num -= 1
-        if num < 0:
-            return col
 
 
 class GoogleSheetReader(XlrdWorkbookLike):
@@ -239,7 +204,7 @@ class GoogleSheetReader(XlrdWorkbookLike):
         :param kwargs: added to request body
         :return:
         """
-        col = _colnum_to_col(col)
+        col = colnum_to_col(col)
         data = [[value]]
         rn = '%s%d:%s%d' % (col, row + 1, col, row + 1)
         return self.write_to_sheet(sheet, rn, data, **kwargs)
@@ -254,7 +219,7 @@ class GoogleSheetReader(XlrdWorkbookLike):
         :param kwargs:
         :return:
         """
-        col = _colnum_to_col(col)
+        col = colnum_to_col(col)
         data = [[k] for k in values]
         n = len(data)
         rn = '%s%d:%s%d' % (col, start_row+1, col, start_row + n)
@@ -274,7 +239,7 @@ class GoogleSheetReader(XlrdWorkbookLike):
         row += 1
         data = [[k for k in values]]
         n = len(data[0])
-        rn = '%s%d:%s%d' % (_colnum_to_col(start_col), row, _colnum_to_col(start_col + n - 1), row)
+        rn = '%s%d:%s%d' % (colnum_to_col(start_col), row, colnum_to_col(start_col + n - 1), row)
         self.write_to_sheet(sheet, rn, data, **kwargs)
 
     def write_rectangle_by_rows(self, sheet, row_gen, start_row=0, start_col=0, **kwargs):
@@ -305,7 +270,7 @@ class GoogleSheetReader(XlrdWorkbookLike):
             while len(row) < n:
                 row.append(None)
 
-        rn = '%s%d:%s%d' % (_colnum_to_col(start_col), start_row, _colnum_to_col(start_col + n - 1), end_row)
+        rn = '%s%d:%s%d' % (colnum_to_col(start_col), start_row, colnum_to_col(start_col + n - 1), end_row)
         self.write_to_sheet(sheet, rn, data, **kwargs)
 
     def clear_region(self, sheet, start_row=0, start_col=0, end_row=None, end_col=None, **kwargs):
@@ -332,6 +297,6 @@ class GoogleSheetReader(XlrdWorkbookLike):
         start_row = max([start_row + 1, 1])
         start_col = max([start_col + 1, 1])
 
-        rn = '%s!R%dC%d:R%d:C%d' % (sheet, start_row, start_col, end_row, end_col)
+        rn = '%s!R%dC%d:R%dC%d' % (sheet, start_row, start_col, end_row, end_col)
         req = self._res.spreadsheets().values().clear(spreadsheetId=self._sheet_id, range=rn, body=kwargs)
         req.execute()
