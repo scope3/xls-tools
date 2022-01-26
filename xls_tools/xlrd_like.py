@@ -107,3 +107,13 @@ class XlrdWorkbookLike(object):
 
     def sheets(self):
         raise NotImplementedError
+
+    def __getitem__(self, item):
+        if isinstance(item, int):
+            return self.sheet_by_index(item)
+        else:
+            return self.sheet_by_name(item)
+
+    @property
+    def filename(self):
+        raise NotImplementedError

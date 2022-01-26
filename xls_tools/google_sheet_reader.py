@@ -133,6 +133,10 @@ class GoogleSheetReader(XlrdWorkbookLike):
 
         self._sheetnames = self.sheet_names()
 
+    @property
+    def filename(self):
+        return self._sheet_id
+
     def sheet_names(self):
         req = self._res.spreadsheets().get(spreadsheetId=self._sheet_id)
         d = req.execute()

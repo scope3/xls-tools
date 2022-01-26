@@ -56,13 +56,17 @@ class XlReader(XlrdWorkbookLike):
     def __init__(self, xlfile, formatting_info=False, **kwargs):
         """
         Open an Xl file for tabular data access
-        :param xlfile:
+        :param xlfile: an XlrdWorkbookLike or a filename
         :param formatting_info: whether to open the spreadsheet with formatting (not implemented upstream for XLSX)
         :param kwargs: defaults to get passed to every XlSheet
         """
         self._args = kwargs
-        self._xl = open_xl(xlfile, formatting_info=formatting_info)
-        self._fname = os.path.abspath(xlfile)
+        if isinstance(xlfile, XlrdWorkbookLike):
+            self._xl = xlfile
+            self._fname = xlfile.filename
+        else:
+            self._xl = open_xl(xlfile, formatting_info=formatting_info)
+            self._fname = os.path.abspath(xlfile)
 
         self._sheets = [None] * len(self._xl.sheet_names())
 

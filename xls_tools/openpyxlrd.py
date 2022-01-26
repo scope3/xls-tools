@@ -118,3 +118,7 @@ class OpenpyXlrdWorkbook(XlrdWorkbookLike):
 
     def sheets(self):
         return self._sheets
+
+    @property
+    def filename(self):
+        return self._book.file
