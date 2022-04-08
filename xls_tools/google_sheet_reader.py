@@ -84,15 +84,6 @@ class GSheetEmulator(XlrdSheetLike):
     def cell(self, row, col):
         return GSheetCell(self._data[row][col])
 
-    def row_dict(self, row):
-        """
-        Creates a dictionary of the nth row using the 0th row as keynames
-        :param row:
-        :return:
-        """
-        headers = [k.value for k in self.row(0)]
-        return {headers[i]: k.value for i, k in enumerate(self.row(row))}
-
 
 class GoogleSheetReader(XlrdWorkbookLike):
     """

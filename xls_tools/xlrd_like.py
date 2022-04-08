@@ -88,6 +88,16 @@ class XlrdSheetLike(object):
     def get_rows(self):
         raise NotImplementedError
 
+    def row_dict(self, row):
+        """
+        Creates a dictionary of the nth row using the 0th row as keynames
+        :param row:
+        :return:
+        """
+        headers = [k.value for k in self.row(0)]
+        return {headers[i]: k.value for i, k in enumerate(self.row(row))}
+
+
 
 class XlrdWorkbookLike(object):
     """
