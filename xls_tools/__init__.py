@@ -1,10 +1,18 @@
+"""
+TODO: import CSV
+"""
+
 import os
 import xlrd
 import re
 
 from datetime import datetime
 
-from .google_sheet_reader import GoogleSheetReader
+try:
+    from .google_sheet_reader import GoogleSheetReader
+except ImportError:
+    print('Unable to import GoogleSheetReader - try python setup.py install [gsheet]')
+    GoogleSheetReader = False
 from .xl_reader import XlReader
 from .xl_sheet import XlSheet
 from .openpyxlrd import OpenpyXlrdWorkbook
@@ -14,6 +22,13 @@ from .util import colnum_to_col, col_to_colnum
 
 
 def xl_date(cell_or_value, mode=0, short=True):
+    """
+    This uses an xlrd utility function to convert excel integer dates to date tuples.
+    :param cell_or_value:
+    :param mode:
+    :param short:
+    :return:
+    """
     if isinstance(cell_or_value, xlrd.sheet.Cell):
         val = cell_or_value.value
     else:
