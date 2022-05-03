@@ -91,6 +91,7 @@ class XlrdSheetLike(object):
     def row_dict(self, row):
         """
         Creates a dictionary of the nth row using the 0th row as keynames
+        TODO: need to assign this capability to native xlrd sheets, which don't have it
         :param row:
         :return:
         """
