@@ -96,7 +96,7 @@ class XlrdSheetLike(object):
         :return:
         """
         headers = [k.value for k in self.row(0)]
-        return {headers[i]: k.value for i, k in enumerate(self.row(row))}
+        return {headers[i]: k.value for i, k in enumerate(self.row(row)[:len(headers)])}
 
 
 

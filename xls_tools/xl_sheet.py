@@ -230,6 +230,7 @@ class XlSheet(XlrdSheetLike):
             self.datarow = datarow or 1
             self.datacol = datacol or 0
             self.headerrow = self.datarow - 1
+            self._lr_int = self.nrows
         else:
             self._discover(datarow, datacol)
 
@@ -426,6 +427,9 @@ class XlSheet(XlrdSheetLike):
         else:
             h = None
         return self._read_row(row + self.datarow, _make_dict=h)
+
+    def row_dict(self, row):
+        return self.row(row, rowdict=True)
 
     def col(self, column, mask=None):
         column = self._find_column(column)
