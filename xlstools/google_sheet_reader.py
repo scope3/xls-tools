@@ -101,7 +101,7 @@ class GoogleSheetReader(XlrdWorkbookLike):
     value: (property) value of the cell
 
     """
-    def __init__(self, credential_file, sheet_id):
+    def __init__(self, credentials, sheet_id):
         """
         Creates an Xlrd-like object that also has create-sheet and write-to-sheet capabilities.
 
@@ -111,13 +111,17 @@ class GoogleSheetReader(XlrdWorkbookLike):
         the sheet_id is the long alphanumeric string that appears in the URL, e.g.:
         https://docs.google.com/spreadsheets/d/{sheet_id}/edit#...
 
-        You must grant your service account authority to access the sheet.
+        You must grant your service account authority to access the sheet using the "Share" button.
 
-        :param credential_file:
+        :param credentials: either a path to a credential file, or a credential dict (as derived from a file)
         :param sheet_id:
         """
-        cred = ServiceAccountCredentials.from_json_keyfile_name(credential_file,
-                                                                scopes=['https://spreadsheets.google.com/feeds'])
+        if isinstance(credentials, dict):
+            cred = ServiceAccountCredentials.from_json_keyfile_dict(credentials,
+                                                                    scopes=['https://spreadsheets.google.com/feeds'])
+        else:
+            cred = ServiceAccountCredentials.from_json_keyfile_name(credentials,
+                                                                    scopes=['https://spreadsheets.google.com/feeds'])
         self._res = discovery.build('sheets', 'v4', credentials=cred)
 
         self._sheet_id = sheet_id
@@ -261,6 +265,10 @@ class GoogleSheetReader(XlrdWorkbookLike):
             n = max([n, len(nextdata)])
             data.append(nextdata)
             end_row += 1
+
+        if end_row < start_row:  # no rows generated
+            print('write_rectangle: no data provided')
+            return
 
         for row in data:
             while len(row) < n:
