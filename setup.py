@@ -12,11 +12,13 @@ Version History:
 
 0.1.1 - 1 August 2022 - add CSV reader (with pandas emulation!)
         change package name to xlstools
+        
+0.1.2 - 19 February 2023 - finish csv; add write class
 
 """
 
 
-VERSION = '0.1.1'
+VERSION = '0.1.2'
 
 setup(
     name="xlstools",
