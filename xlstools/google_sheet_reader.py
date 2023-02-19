@@ -1,7 +1,7 @@
 from googleapiclient import discovery
 from googleapiclient.http import HttpError
 from oauth2client.service_account import ServiceAccountCredentials
-from .xlrd_like import XlrdCellLike, XlrdSheetLike, XlrdWorkbookLike
+from .xlrd_like import XlrdCellLike, XlrdSheetLike, XlrdWriteWorkbook
 from .util import colnum_to_col
 
 import time
@@ -85,7 +85,7 @@ class GSheetEmulator(XlrdSheetLike):
         return GSheetCell(self._data[row][col])
 
 
-class GoogleSheetReader(XlrdWorkbookLike):
+class GoogleSheetReader(XlrdWriteWorkbook):
     """
     Creates an xlrd-like google sheet reader with the following properties:
 
@@ -99,6 +99,8 @@ class GoogleSheetReader(XlrdWorkbookLike):
     'cell-like' object has the following minimal API:
     ctype: (property) integer 0=empty, 1=text, 2=number, 3=date, 4=bool, 5=error, 6=debug
     value: (property) value of the cell
+
+    Also confers writing abilities (much easier to write by API than to write an old-fashioned file)
 
     """
     def __init__(self, credentials, sheet_id):

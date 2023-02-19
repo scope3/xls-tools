@@ -21,6 +21,7 @@ XlCellLike: cell equivalent
  .ctype - int, as indicated below
  .value - native value
 """
+import abc
 from datetime import datetime
 
 import openpyxl
@@ -99,8 +100,7 @@ class XlrdSheetLike(object):
         return {headers[i]: k.value for i, k in enumerate(self.row(row)[:len(headers)])}
 
 
-
-class XlrdWorkbookLike(object):
+class XlrdWorkbookLike(object, abc.ABC):
     """
      .sheet_names() - return list of sheet names
      .sheet_by_name() - return an XlSheetLike given by name
@@ -127,4 +127,32 @@ class XlrdWorkbookLike(object):
 
     @property
     def filename(self):
+        raise NotImplementedError
+
+
+class XlrdWriteWorkbook(XlrdWorkbookLike, abc.ABC):
+    """
+     .create_sheet()
+     .write_cell()
+     .write_row()
+     .write_column()
+     .write_rectangle_by_rows()
+     .clear_region()
+    """
+    def create_sheet(self, sheetname, **kwargs):
+        raise NotImplementedError
+
+    def write_cell(self, sheet, row, col, value, **kwargs):
+        raise NotImplementedError
+
+    def write_row(self, sheet, row, values, start_col, **kwargs):
+        raise NotImplementedError
+
+    def write_col(self, sheet, col, values, start_row, **kwargs):
+        raise NotImplementedError
+
+    def write_rectangle_by_rows(self, sheet, row_gen, start_row=0, start_col=0, **kwargs):
+        raise NotImplementedError
+
+    def clear_region(self, sheet, start_row=0, start_col=0, end_row=None, end_col=None, **kwargs):
         raise NotImplementedError
