@@ -15,10 +15,11 @@ Version History:
         
 0.1.2 - 19 February 2023 - finish csv; add write class
 
+0.1.3 - 21 February 2023 - dumb abc error. we should think about writing some tests :P
 """
 
 
-VERSION = '0.1.2'
+VERSION = '0.1.3'
 
 setup(
     name="xlstools",

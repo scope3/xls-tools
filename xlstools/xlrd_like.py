@@ -26,11 +26,11 @@ from datetime import datetime
 
 import openpyxl
 from xlrd.biffh import (
-    XL_CELL_EMPTY,  # 0
-    XL_CELL_TEXT,   # 1
-    XL_CELL_NUMBER, # 2
-    XL_CELL_DATE,   # 3
-    XL_CELL_BOOLEAN,# 4
+    XL_CELL_EMPTY,    # 0
+    XL_CELL_TEXT,     # 1
+    XL_CELL_NUMBER,   # 2
+    XL_CELL_DATE,     # 3
+    XL_CELL_BOOLEAN,  # 4
     # XL_CELL_ERROR, # 5
     # XL_CELL_BLANK, # 6 - for use in debugging, gathering stats, etc
 )
@@ -100,7 +100,7 @@ class XlrdSheetLike(object):
         return {headers[i]: k.value for i, k in enumerate(self.row(row)[:len(headers)])}
 
 
-class XlrdWorkbookLike(object, abc.ABC):
+class XlrdWorkbookLike(abc.ABC):
     """
      .sheet_names() - return list of sheet names
      .sheet_by_name() - return an XlSheetLike given by name
@@ -130,7 +130,7 @@ class XlrdWorkbookLike(object, abc.ABC):
         raise NotImplementedError
 
 
-class XlrdWriteWorkbook(XlrdWorkbookLike, abc.ABC):
+class XlrdWriteWorkbook(XlrdWorkbookLike):
     """
      .create_sheet()
      .write_cell()
