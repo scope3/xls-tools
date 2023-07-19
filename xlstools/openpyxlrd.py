@@ -121,4 +121,4 @@ class OpenpyXlrdWorkbook(XlrdWorkbookLike):
 
     @property
     def filename(self):
-        return self._book.file
+        return 'openpyxl-workbook'
