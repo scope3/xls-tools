@@ -16,10 +16,12 @@ Version History:
 0.1.2 - 19 February 2023 - finish csv; add write class
 
 0.1.3 - 21 February 2023 - dumb abc error. we should think about writing some tests :P
+
+0.1.4 - 15 May 2024 - bugfixes: Openpyxl workbook name; gsheet empty-sheet
 """
 
 
-VERSION = '0.1.3'
+VERSION = '0.1.4'
 
 setup(
     name="xlstools",

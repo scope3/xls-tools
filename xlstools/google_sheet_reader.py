@@ -30,7 +30,7 @@ class GSheetEmulator(XlrdSheetLike):
 
         :param value_data: must follow the google sheets v4 API .spreadsheets().values().get(... range=sheetname)
         """
-        if len(value_data['values']) == 0:
+        if len(value_data.get('values', [])) == 0:
             _nr = _nc = 0
             data = [[]]
         else:
@@ -151,7 +151,11 @@ class GoogleSheetReader(XlrdWriteWorkbook):
             d = req.execute()
         except HttpError:
             raise KeyError('Unable to open sheet %s' % sheetname)
-        return GSheetEmulator(d)
+        try:
+            return GSheetEmulator(d)
+        except KeyError:
+            print('failed GSheet instantiation')
+            return d
 
     def sheet_by_index(self, index):
         return self.sheet_by_name(self._sheetnames[index])
