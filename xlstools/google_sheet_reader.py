@@ -1,6 +1,13 @@
-from googleapiclient import discovery
-from googleapiclient.http import HttpError
-from oauth2client.service_account import ServiceAccountCredentials
+import logging
+try:
+    from googleapiclient import discovery
+    from googleapiclient.http import HttpError
+    from oauth2client.service_account import ServiceAccountCredentials
+except ImportError:
+    logging.error('Dependencies missing: google-api-python-client, oauth2client. GoogleSheetReader will not operate.')
+    discovery = HttpError = ServiceAccountCredentials = None
+
+
 from .xlrd_like import XlrdCellLike, XlrdSheetLike, XlrdWriteWorkbook
 from .util import colnum_to_col
 
@@ -215,7 +222,7 @@ class GoogleSheetReader(XlrdWriteWorkbook):
         rn = '%s%d:%s%d' % (col, row + 1, col, row + 1)
         return self.write_to_sheet(sheet, rn, data, **kwargs)
 
-    def write_column(self, sheet, col, values, start_row=0, **kwargs):
+    def write_col(self, sheet, col, values, start_row=0, **kwargs):
         """
         Write sequential data into a column of the google sheet.
         :param sheet:

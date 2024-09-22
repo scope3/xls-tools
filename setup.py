@@ -18,10 +18,12 @@ Version History:
 0.1.3 - 21 February 2023 - dumb abc error. we should think about writing some tests :P
 
 0.1.4 - 15 May 2024 - bugfixes: Openpyxl workbook name; gsheet empty-sheet
+
+0.1.5 - 22 September 2024 - Get rid of google sheet nag
 """
 
 
-VERSION = '0.1.4'
+VERSION = '0.1.5'
 
 setup(
     name="xlstools",

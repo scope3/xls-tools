@@ -8,11 +8,6 @@ import re
 
 from datetime import datetime
 
-try:
-    from .google_sheet_reader import GoogleSheetReader
-except ImportError:
-    print('Unable to import GoogleSheetReader - try python setup.py install [gsheet]')
-    GoogleSheetReader = False
 from .xl_reader import XlReader
 from .xl_sheet import XlSheet
 from .openpyxlrd import OpenpyXlrdWorkbook
