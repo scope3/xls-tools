@@ -119,6 +119,9 @@ class XlrdWorkbookLike(abc.ABC):
     def sheets(self):
         raise NotImplementedError
 
+    def __contains__(self, item):
+        raise NotImplementedError
+
     def __getitem__(self, item):
         if isinstance(item, int):
             return self.sheet_by_index(item)

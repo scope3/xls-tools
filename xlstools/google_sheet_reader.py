@@ -110,7 +110,7 @@ class GoogleSheetReader(XlrdWriteWorkbook):
     Also confers writing abilities (much easier to write by API than to write an old-fashioned file)
 
     """
-    def __init__(self, credentials, sheet_id):
+    def __init__(self, credentials, spreadsheet_id):
         """
         Creates an Xlrd-like object that also has create-sheet and write-to-sheet capabilities.
 
@@ -123,7 +123,7 @@ class GoogleSheetReader(XlrdWriteWorkbook):
         You must grant your service account authority to access the sheet using the "Share" button.
 
         :param credentials: either a path to a credential file, or a credential dict (as derived from a file)
-        :param sheet_id:
+        :param spreadsheet_id:
         """
         if isinstance(credentials, dict):
             cred = ServiceAccountCredentials.from_json_keyfile_dict(credentials,
@@ -133,17 +133,22 @@ class GoogleSheetReader(XlrdWriteWorkbook):
                                                                     scopes=['https://spreadsheets.google.com/feeds'])
         self._res = discovery.build('sheets', 'v4', credentials=cred)
 
-        self._sheet_id = sheet_id
+        self._spreadsheet_id = spreadsheet_id
 
         self._sheetnames = self.sheet_names()
+        self._sheet_ids = dict()
+
+    def __contains__(self, item):
+        return item in self._sheetnames
 
     @property
     def filename(self):
-        return self._sheet_id
+        return self._spreadsheet_id
 
     def sheet_names(self):
-        req = self._res.spreadsheets().get(spreadsheetId=self._sheet_id)
+        req = self._res.spreadsheets().get(spreadsheetId=self._spreadsheet_id)
         d = req.execute()
+        self._sheet_ids = {k['properties']['title']: k['properties']['sheetId'] for k in d['sheets']}
         return [k['properties']['title'] for k in d['sheets']]
 
     def sheet_by_name(self, sheetname):
@@ -153,7 +158,7 @@ class GoogleSheetReader(XlrdWriteWorkbook):
         :return:
         """
         quoted_sheetname = "'%s'" % sheetname  # without quotes it may be interpreted as a named range
-        req = self._res.spreadsheets().values().get(spreadsheetId=self._sheet_id, range=quoted_sheetname)
+        req = self._res.spreadsheets().values().get(spreadsheetId=self._spreadsheet_id, range=quoted_sheetname)
         try:
             d = req.execute()
         except HttpError:
@@ -167,6 +172,9 @@ class GoogleSheetReader(XlrdWriteWorkbook):
     def sheet_by_index(self, index):
         return self.sheet_by_name(self._sheetnames[index])
 
+    def sheet_id(self, name):
+        return self._sheet_ids[name]
+
     def sheets(self):
         """
         No sheet caching!
@@ -175,18 +183,19 @@ class GoogleSheetReader(XlrdWriteWorkbook):
         return [self.sheet_by_name(name) for name in self._sheetnames]
 
     def create_sheet(self, name, **kwargs):
+        if name in self._sheetnames:
+            return self.sheet_by_name(name)
+
         kwargs['title'] = name
 
-        body = {'requests': [
-            {'addSheet':
-                 {'properties': kwargs}
-             }
-
-        ]}
-        req = self._res.spreadsheets().batchUpdate(spreadsheetId=self._sheet_id,
-                                                   body=body)
-        ret = req.execute()
-        self._sheetnames = self.sheet_names()
+        add = {
+            'addSheet': {
+                'properties': kwargs
+            }
+        }
+        ret = self.batch_update(add)
+        self._sheetnames.append(name)
+        self._sheet_ids[name] = ret['replies'][0]['addSheet']['properties']['sheetId']
         return ret
 
     def write_to_sheet(self, sheet, range, data, **kwargs):
@@ -200,12 +209,30 @@ class GoogleSheetReader(XlrdWriteWorkbook):
         """
         r = '%s!%s' % (sheet, range)
         kwargs['values'] = data
-        req = self._res.spreadsheets().values().update(spreadsheetId=self._sheet_id, range=r,
+        req = self._res.spreadsheets().values().update(spreadsheetId=self._spreadsheet_id, range=r,
                                                        body=kwargs, valueInputOption='RAW')
         result = req.execute()
         time.sleep(1)  # standard quota is only 60 requests per minute per user (300 per minute per project)
         # use write_rectangle_by_rows and [nonimpl] write_rectangle_by_columns
         return result
+
+    def batch_update(self, *requests):
+        """
+        Sends a list of pre-generated request objects to the specified sheet.  For instructions on constructing
+        the request objects, see the official API docs here:
+        https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets/request#Request
+
+        All supplied requests are evaluated for correctness. If any request fails validation, no requests are executed.
+
+        example:
+        gs.batch_update('my_sheet', {'repeatCell': {'range': {range dict}, 'cell': {cell dict}, 'fields': str}}, ...)
+
+        :param requests:
+        :return:
+        """
+        body = {'requests': list(requests)}
+        req = self._res.spreadsheets().batchUpdate(spreadsheetId=self._spreadsheet_id, body=body)
+        return req.execute()
 
     def write_cell(self, sheet, row, col, value, **kwargs):
         """
@@ -315,7 +342,7 @@ class GoogleSheetReader(XlrdWriteWorkbook):
         start_col = max([start_col + 1, 1])
 
         rn = '%s!R%dC%d:R%dC%d' % (sheet, start_row, start_col, end_row, end_col)
-        req = self._res.spreadsheets().values().clear(spreadsheetId=self._sheet_id, range=rn, body=kwargs)
+        req = self._res.spreadsheets().values().clear(spreadsheetId=self._spreadsheet_id, range=rn, body=kwargs)
         req.execute()
 
     def write_dataframe(self, sheetname, df, clear_sheet=True, write_header=True, header_levels=None,
@@ -339,7 +366,7 @@ class GoogleSheetReader(XlrdWriteWorkbook):
         if header_levels is None or header_levels > df.columns.nlevels:
             header_levels = df.columns.nlevels
 
-        if sheetname in self.sheet_names():
+        if sheetname in self._sheetnames:
             # start by clearing the sheet- with or without headers
             if clear_sheet:
                 if write_header:

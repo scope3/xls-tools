@@ -87,6 +87,9 @@ class OpenpyxlSheetLike(XlrdSheetLike):
 
 class OpenpyXlrdWorkbook(XlrdWorkbookLike):
 
+    def __contains__(self, item):
+        return item in self._names
+
     @classmethod
     def from_file(cls, file, **kwargs):
         return cls(openpyxl.load_workbook(file, **kwargs))

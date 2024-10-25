@@ -12,9 +12,10 @@ def open_xl(path, formatting_info=False, data_only=True, **kwargs):
     :param kwargs:
     :return:
     """
-    if path.lower().endswith('xls'):
+    strpathlower = str(path).lower()
+    if strpathlower.endswith('xls'):
         return xlrd.open_workbook(path, formatting_info=formatting_info)
-    elif path.lower().endswith('csv'):
+    elif strpathlower.endswith('csv'):
         return CsvWorkbook(path, **kwargs)
     else:
         '''

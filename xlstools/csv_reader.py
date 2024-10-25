@@ -31,6 +31,9 @@ class CsvSheet(XlrdSheetLike):
 
         self._headers = list(self._df.columns)
 
+    def __contains__(self, item):
+        return item == self._name
+
     def _find_column(self, column):
         """
         if number,
