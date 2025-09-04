@@ -133,7 +133,7 @@ class XlrdWorkbookLike(abc.ABC):
         raise NotImplementedError
 
 
-class XlrdWriteWorkbook(XlrdWorkbookLike):
+class XlrdWriteWorkbook(XlrdWorkbookLike, abc.ABC):
     """
      .create_sheet()
      .write_cell()
@@ -141,6 +141,8 @@ class XlrdWriteWorkbook(XlrdWorkbookLike):
      .write_column()
      .write_rectangle_by_rows()
      .clear_region()
+
+     These together enable the super-useful write_dataframe_to_sheet()
     """
     def create_sheet(self, sheetname, **kwargs):
         raise NotImplementedError
@@ -148,10 +150,10 @@ class XlrdWriteWorkbook(XlrdWorkbookLike):
     def write_cell(self, sheet, row, col, value, **kwargs):
         raise NotImplementedError
 
-    def write_row(self, sheet, row, values, start_col, **kwargs):
+    def write_row(self, sheet, row, values, start_col=0, **kwargs):
         raise NotImplementedError
 
-    def write_col(self, sheet, col, values, start_row, **kwargs):
+    def write_col(self, sheet, col, values, start_row=0, **kwargs):
         raise NotImplementedError
 
     def write_rectangle_by_rows(self, sheet, row_gen, start_row=0, start_col=0, **kwargs):
@@ -159,3 +161,57 @@ class XlrdWriteWorkbook(XlrdWorkbookLike):
 
     def clear_region(self, sheet, start_row=0, start_col=0, end_row=None, end_col=None, **kwargs):
         raise NotImplementedError
+
+    def write_dataframe(self, sheetname, df, clear_sheet=True, write_header=True, header_levels=None,
+                        fillna='NA', write_index=True):
+        """
+
+        :param self: a GoogleSheetReader
+        :param sheetname: sheet to write to or create
+        :param df: a pandas dataframe
+        :param clear_sheet: [True]
+        :param write_header: [True] whether to write header (False: leave it standing)
+        :param header_levels: number of header levels to write. Must be <= nlevels
+        :param fillna:
+        :param write_index:
+        :return:
+        """
+
+        ncol = len(df.columns)
+        if not write_index:
+            ncol -= 1
+        if header_levels is None or header_levels > df.columns.nlevels:
+            header_levels = df.columns.nlevels
+
+        if sheetname in self.sheet_names():
+            # start by clearing the sheet- with or without headers
+            if clear_sheet:
+                if write_header:
+                    self.clear_region(sheetname)
+                else:
+                    self.clear_region(sheetname, start_row=header_levels)
+            else:
+                if write_header:
+                    self.clear_region(sheetname, end_col=ncol, end_row=header_levels - 1)
+        else:
+            self.create_sheet(sheetname)
+
+        # then populate
+        def _row_gen(_df):
+            for _i, row in _df.fillna(fillna).iterrows():
+                if write_index:
+                    yield [_i] + list(row.values)
+                else:
+                    yield list(row.values)
+
+        if write_header:
+            for i in range(header_levels):
+                if write_index:
+                    h = [''] + list(df.columns.get_level_values(i))
+                else:
+                    h = list(df.columns.get_level_values(i))
+                self.write_row(sheetname, i, h)
+            if df.index.name is not None:
+                print('index names not handled')
+
+        self.write_rectangle_by_rows(sheetname, _row_gen(df), start_row=header_levels)

@@ -110,6 +110,8 @@ class GoogleSheetReader(XlrdWriteWorkbook):
     Also confers writing abilities (much easier to write by API than to write an old-fashioned file)
 
     """
+    _sheetnames = []
+
     def __init__(self, credentials, spreadsheet_id):
         """
         Creates an Xlrd-like object that also has create-sheet and write-to-sheet capabilities.
@@ -135,7 +137,7 @@ class GoogleSheetReader(XlrdWriteWorkbook):
 
         self._spreadsheet_id = spreadsheet_id
 
-        self._sheetnames = self.sheet_names()
+        self.sheet_names()
         self._sheet_ids = dict()
 
     def __contains__(self, item):
@@ -145,11 +147,15 @@ class GoogleSheetReader(XlrdWriteWorkbook):
     def filename(self):
         return self._spreadsheet_id
 
-    def sheet_names(self):
+    def sheet_names(self, refresh=False):
+        if refresh is False:
+            if len(self._sheetnames) > 0:
+                return self._sheetnames
         req = self._res.spreadsheets().get(spreadsheetId=self._spreadsheet_id)
         d = req.execute()
         self._sheet_ids = {k['properties']['title']: k['properties']['sheetId'] for k in d['sheets']}
-        return [k['properties']['title'] for k in d['sheets']]
+        self._sheetnames = [k['properties']['title'] for k in d['sheets']]
+        return self._sheetnames
 
     def sheet_by_name(self, sheetname):
         """
@@ -330,6 +336,9 @@ class GoogleSheetReader(XlrdWriteWorkbook):
         :return:
         """
         s = self.sheet_by_name(sheet)
+        if s.nrows == 0 or s.ncols == 0:
+            return  # nothing to do
+
         if end_row is None or end_row > (s.nrows - 1):
             end_row = s.nrows
         else:
@@ -344,54 +353,3 @@ class GoogleSheetReader(XlrdWriteWorkbook):
         rn = '%s!R%dC%d:R%dC%d' % (sheet, start_row, start_col, end_row, end_col)
         req = self._res.spreadsheets().values().clear(spreadsheetId=self._spreadsheet_id, range=rn, body=kwargs)
         req.execute()
-
-    def write_dataframe(self, sheetname, df, clear_sheet=True, write_header=True, header_levels=None,
-                        fillna='NA', write_index=True):
-        """
-
-        :param self: a GoogleSheetReader
-        :param sheetname: sheet to write to or create
-        :param df: a pandas dataframe
-        :param clear_sheet: [True]
-        :param write_header: [True] whether to write header (False: leave it standing)
-        :param header_levels: number of header levels to write. Must be <= nlevels
-        :param fillna:
-        :param write_index:
-        :return:
-        """
-
-        ncol = len(df.columns)
-        if not write_index:
-            ncol -= 1
-        if header_levels is None or header_levels > df.columns.nlevels:
-            header_levels = df.columns.nlevels
-
-        if sheetname in self._sheetnames:
-            # start by clearing the sheet- with or without headers
-            if clear_sheet:
-                if write_header:
-                    self.clear_region(sheetname)
-                else:
-                    self.clear_region(sheetname, start_row=header_levels)
-            else:
-                if write_header:
-                    self.clear_region(sheetname, end_col=ncol, end_row=header_levels - 1)
-        else:
-            self.create_sheet(sheetname)
-
-        #then populate
-        def _row_gen(_df):
-            for _i, row in _df.fillna(fillna).iterrows():
-                if write_index:
-                    yield [_i] + list(row.values)
-                else:
-                    yield list(row.values)
-
-        if write_header:
-            for i in range(header_levels):
-                if write_index:
-                    h = [''] + list(df.columns.get_level_values(i))
-                else:
-                    h = list(df.columns.get_level_values(i))
-                self.write_row(sheetname, i, h)
-        self.write_rectangle_by_rows(sheetname, _row_gen(df), start_row=header_levels)

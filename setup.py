@@ -8,22 +8,29 @@ requires = [
 """
 Version History:
 
-0.1.0  - 8 April 2022 - initial public release
+0.1.7 - 25 August 2025 - move dataframe export to xlrd_like
+
+0.1.6 - 24 October 2024 - implement batch_update on GoogleSheetReader
+        treat Paths as strings
+        add __contains__
+
+0.1.5 - 22 September 2024 - Get rid of google sheet nag
+
+0.1.4 - 15 May 2024 - bugfixes: Openpyxl workbook name; gsheet empty-sheet
+
+0.1.3 - 21 February 2023 - dumb abc error. we should think about writing some tests :P
+
+0.1.2 - 19 February 2023 - finish csv; add write class
 
 0.1.1 - 1 August 2022 - add CSV reader (with pandas emulation!)
         change package name to xlstools
         
-0.1.2 - 19 February 2023 - finish csv; add write class
+0.1.0  - 8 April 2022 - initial public release
 
-0.1.3 - 21 February 2023 - dumb abc error. we should think about writing some tests :P
-
-0.1.4 - 15 May 2024 - bugfixes: Openpyxl workbook name; gsheet empty-sheet
-
-0.1.5 - 22 September 2024 - Get rid of google sheet nag
 """
 
 
-VERSION = '0.1.6'
+VERSION = '0.1.7'
 
 setup(
     name="xlstools",
